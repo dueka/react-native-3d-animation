@@ -1,22 +1,20 @@
 import * as React from "react";
 import {
-  FlatList,
   Image,
   Text,
   View,
   Dimensions,
   TouchableOpacity,
-  StyleSheet,
   Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native";
 import { AntDesign } from "@expo/vector-icons";
-import faker from "faker";
+import uuid from "react-native-uuid";
 import { StatusBar } from "expo-status-bar";
 const { width, height } = Dimensions.get("screen");
 
 const IMAGE_WIDTH = width * 0.65;
-const IMAGE_HEIGHT = height * 0.7;
+const IMAGE_HEIGHT = height * 0.5;
 const SPACING = 20;
 
 const images = [
@@ -37,14 +35,10 @@ const images = [
   "https://images.pexels.com/photos/1724888/pexels-photo-1724888.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500",
 ];
 
-faker.seed(10);
 const DATA = [...Array(images.length).keys()].map((_, i) => {
   return {
-    key: faker.datatype.uuid(),
+    key: uuid.v4(),
     image: images[i],
-    title: faker.commerce.product(),
-    subtitle: faker.company.bs(),
-    price: faker.finance.amount(80, 200, 0),
   };
 });
 
@@ -132,25 +126,16 @@ export default () => {
               );
             }}
           />
-          <View
-            style={{
-              width: IMAGE_WIDTH,
-              alignItems: "center",
-              paddingHorizontal: SPACING * 2,
-              marginLeft: SPACING * 2,
-            }}
-          >
-            <Content item={DATA[0]} />
-          </View>
           <Animated.View
             style={{
-              width: IMAGE_WIDTH + SPACING * 2,
+              width: IMAGE_WIDTH + SPACING * 4,
+              height: 450,
               position: "absolute",
               backgroundColor: "white",
               backfaceVisibility: true,
               zIndex: -1,
-              top: SPACING * 2,
-              left: SPACING,
+              top: SPACING * 1,
+              left: SPACING * 1.7,
               bottom: 0,
               shadowColor: "#000",
               shadowOpacity: 0.2,
