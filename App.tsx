@@ -1,186 +1,392 @@
 import * as React from "react";
 import {
-  Image,
   Text,
+  StyleSheet,
   View,
-  Dimensions,
-  TouchableOpacity,
-  Animated,
+  Button,
+  ActivityIndicator,
 } from "react-native";
-import { SafeAreaView } from "react-native";
-import { AntDesign } from "@expo/vector-icons";
-import uuid from "react-native-uuid";
-import { StatusBar } from "expo-status-bar";
-const { width, height } = Dimensions.get("screen");
+import { Audio } from "expo-av";
+import FormData from "form-data";
+import axios from "axios";
+import Mode from "./src/components/Mode";
+import TranscribedOutput from "./src/components/TranscribeOutput";
 
-const IMAGE_WIDTH = width * 0.65;
-const IMAGE_HEIGHT = height * 0.5;
-const SPACING = 20;
-
-const images = [
-  "https://images.pexels.com/photos/1799912/pexels-photo-1799912.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500",
-  "https://images.pexels.com/photos/1769524/pexels-photo-1769524.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500",
-  "https://images.pexels.com/photos/1758101/pexels-photo-1758101.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500",
-  "https://images.pexels.com/photos/1738434/pexels-photo-1738434.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500",
-  "https://images.pexels.com/photos/1698394/pexels-photo-1698394.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500",
-  "https://images.pexels.com/photos/1684429/pexels-photo-1684429.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500",
-  "https://images.pexels.com/photos/1690351/pexels-photo-1690351.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500",
-  "https://images.pexels.com/photos/1668211/pexels-photo-1668211.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500",
-  "https://images.pexels.com/photos/1647372/pexels-photo-1647372.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500",
-  "https://images.pexels.com/photos/1616164/pexels-photo-1616164.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500",
-  "https://images.pexels.com/photos/1799901/pexels-photo-1799901.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500",
-  "https://images.pexels.com/photos/1789968/pexels-photo-1789968.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500",
-  "https://images.pexels.com/photos/1774301/pexels-photo-1774301.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500",
-  "https://images.pexels.com/photos/1734364/pexels-photo-1734364.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500",
-  "https://images.pexels.com/photos/1724888/pexels-photo-1724888.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500",
-];
-
-const DATA = [...Array(images.length).keys()].map((_, i) => {
-  return {
-    key: uuid.v4(),
-    image: images[i],
-  };
-});
-
-const Content = ({ item }: any) => {
-  return (
-    <>
-      <Text
-        style={{
-          textAlign: "center",
-          fontWeight: "800",
-          fontSize: 16,
-          textTransform: "uppercase",
-        }}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-      >
-        {item?.title}
-      </Text>
-      <Text style={{ fontSize: 12, opacity: 0.4 }}>{item.subtitle}</Text>
-    </>
-  );
-};
 export default () => {
-  const scrollX = React.useRef(new Animated.Value(0)).current;
-  const progress = Animated.modulo(Animated.divide(scrollX, width), width);
+  const [recording, setRecording] = React.useState(false as any);
+  const [recordings, setRecordings] = React.useState([]);
+  const [message, setMessage] = React.useState("");
+  const [transcribedData, setTranscribedData] = React.useState([] as any);
+  const [interimTranscribedData] = React.useState("");
+  const [isRecording, setIsRecording] = React.useState(false);
+  const [isTranscribing, setIsTranscribing] = React.useState(false);
+  const [selectedLanguage, setSelectedLanguage] = React.useState("english");
+  const [selectedModel, setSelectedModel] = React.useState(1);
+  const [transcribeTimeout, setTranscribeTimout] = React.useState(5);
+  const [stopTranscriptionSession, setStopTranscriptionSession] =
+    React.useState(false);
+  const [isLoading, setLoading] = React.useState(false);
+  const intervalRef: any = React.useRef(null);
+
+  const stopTranscriptionSessionRef = React.useRef(stopTranscriptionSession);
+  stopTranscriptionSessionRef.current = stopTranscriptionSession;
+
+  const selectedLangRef = React.useRef(selectedLanguage);
+  selectedLangRef.current = selectedLanguage;
+
+  const selectedModelRef = React.useRef(selectedModel);
+  selectedModelRef.current = selectedModel;
+
+  const supportedLanguages = [
+    "english",
+    "chinese",
+    "german",
+    "spanish",
+    "russian",
+    "korean",
+    "french",
+    "japanese",
+    "portuguese",
+    "turkish",
+    "polish",
+    "catalan",
+    "dutch",
+    "arabic",
+    "swedish",
+    "italian",
+    "indonesian",
+    "hindi",
+    "finnish",
+    "vietnamese",
+    "hebrew",
+    "ukrainian",
+    "greek",
+    "malay",
+    "czech",
+    "romanian",
+    "danish",
+    "hungarian",
+    "tamil",
+    "norwegian",
+    "thai",
+    "urdu",
+    "croatian",
+    "bulgarian",
+    "lithuanian",
+    "latin",
+    "maori",
+    "malayalam",
+    "welsh",
+    "slovak",
+    "telugu",
+    "persian",
+    "latvian",
+    "bengali",
+    "serbian",
+    "azerbaijani",
+    "slovenian",
+    "kannada",
+    "estonian",
+    "macedonian",
+    "breton",
+    "basque",
+    "icelandic",
+    "armenian",
+    "nepali",
+    "mongolian",
+    "bosnian",
+    "kazakh",
+    "albanian",
+    "swahili",
+    "galician",
+    "marathi",
+    "punjabi",
+    "sinhala",
+    "khmer",
+    "shona",
+    "yoruba",
+    "somali",
+    "afrikaans",
+    "occitan",
+    "georgian",
+    "belarusian",
+    "tajik",
+    "sindhi",
+    "gujarati",
+    "amharic",
+    "yiddish",
+    "lao",
+    "uzbek",
+    "faroese",
+    "haitian creole",
+    "pashto",
+    "turkmen",
+    "nynorsk",
+    "maltese",
+    "sanskrit",
+    "luxembourgish",
+    "myanmar",
+    "tibetan",
+    "tagalog",
+    "malagasy",
+    "assamese",
+    "tatar",
+    "hawaiian",
+    "lingala",
+    "hausa",
+    "bashkir",
+    "javanese",
+    "sundanese",
+  ];
+
+  const modelOptions = ["tiny", "base", "small", "medium", "large"];
+
+  React.useEffect(() => {
+    return () => clearInterval(intervalRef.current);
+  }, []);
+
+  function handleTranscribeTimeoutChange(newTimeout: any) {
+    setTranscribeTimout(newTimeout);
+  }
+
+  async function startRecording() {
+    try {
+      console.log("Requesting permissions..");
+      const permission = await Audio.requestPermissionsAsync();
+      if (permission.status === "granted") {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+        });
+        alert("Starting recording..");
+        const RECORDING_OPTIONS_PRESET_HIGH_QUALITY: any = {
+          android: {
+            extension: ".mp4",
+            outputFormat: Audio.RECORDING_OPTION_ANDROID_OUTPUT_FORMAT_MPEG_4,
+            audioEncoder: Audio.RECORDING_OPTION_ANDROID_AUDIO_ENCODER_AMR_NB,
+            sampleRate: 44100,
+            numberOfChannels: 2,
+            bitRate: 128000,
+          },
+          ios: {
+            extension: ".wav",
+            audioQuality: Audio.RECORDING_OPTION_IOS_AUDIO_QUALITY_MIN,
+            sampleRate: 44100,
+            numberOfChannels: 2,
+            bitRate: 128000,
+            linearPCMBitDepth: 16,
+            linearPCMIsBigEndian: false,
+            linearPCMIsFloat: false,
+          },
+        };
+        const { recording }: any = await Audio.Recording.createAsync(
+          RECORDING_OPTIONS_PRESET_HIGH_QUALITY
+        );
+        setRecording(recording);
+        console.log("Recording started");
+        setStopTranscriptionSession(false);
+        setIsRecording(true);
+        intervalRef.current = setInterval(
+          transcribeInterim,
+          transcribeTimeout * 1000
+        );
+        console.log("erer", recording);
+      } else {
+        setMessage("Please grant permission to app to access microphone");
+      }
+    } catch (err) {
+      console.error(" Failed to start recording", err);
+    }
+  }
+  async function stopRecording() {
+    console.log("Stopping recording..");
+    setRecording(undefined);
+    await recording.stopAndUnloadAsync();
+    const uri = recording.getURI();
+    let updatedRecordings = [...recordings] as any;
+    const { sound, status } = await recording.createNewLoadedSoundAsync();
+    updatedRecordings.push({
+      sound: sound,
+      duration: getDurationFormatted(status.durationMillis),
+      file: recording.getURI(),
+    });
+    setRecordings(updatedRecordings);
+    console.log("Recording stopped and stored at", uri);
+    // Fetch audio binary blob data
+
+    clearInterval(intervalRef.current);
+    setStopTranscriptionSession(true);
+    setIsRecording(false);
+    setIsTranscribing(false);
+  }
+
+  function getDurationFormatted(millis: any) {
+    const minutes = millis / 1000 / 60;
+    const minutesDisplay = Math.floor(minutes);
+    const seconds = Math.round(minutes - minutesDisplay) * 60;
+    const secondDisplay = seconds < 10 ? `0${seconds}` : seconds;
+    return `${minutesDisplay}:${secondDisplay}`;
+  }
+
+  function getRecordingLines() {
+    return recordings.map((recordingLine: any, index) => {
+      return (
+        <View key={index} style={styles.row}>
+          <Text style={styles.fill}>
+            {" "}
+            Recording {index + 1} - {recordingLine.duration}
+          </Text>
+          <Button
+            style={styles.button}
+            onPress={() => recordingLine.sound.replayAsync()}
+            title="Play"
+          ></Button>
+        </View>
+      );
+    });
+  }
+
+  function transcribeInterim() {
+    clearInterval(intervalRef.current);
+    setIsRecording(false);
+  }
+
+  async function transcribeRecording() {
+    const uri = recording.getURI();
+    const filetype = uri.split(".").pop();
+    const filename = uri.split("/").pop();
+    setLoading(true);
+    const formData: any = new FormData();
+    formData.append("language", selectedLangRef.current);
+    formData.append("model_size", modelOptions[selectedModelRef.current]);
+    formData.append(
+      "audio_data",
+      {
+        uri,
+        type: `audio/${filetype}`,
+        name: filename,
+      },
+      "temp_recording"
+    );
+    axios({
+      url: "https://2c75-197-210-53-169.eu.ngrok.io/transcribe",
+      method: "POST",
+      data: formData,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "multipart/form-data",
+      },
+    })
+      .then(function (response) {
+        console.log("response :", response);
+        setTranscribedData((oldData: any) => [...oldData, response.data]);
+        setLoading(false);
+        setIsTranscribing(false);
+        intervalRef.current = setInterval(
+          transcribeInterim,
+          transcribeTimeout * 1000
+        );
+      })
+      .catch(function (error) {
+        console.log("error : error");
+      });
+
+    if (!stopTranscriptionSessionRef.current) {
+      setIsRecording(true);
+    }
+  }
   return (
-    <View style={{ backgroundColor: "#A5F1FA", flex: 1 }}>
-      <StatusBar hidden />
-      <SafeAreaView style={{ marginTop: SPACING * 1 }}>
-        <View style={{ height: IMAGE_HEIGHT * 2.1 }}>
-          <Animated.FlatList
-            data={DATA}
-            keyExtractor={(item) => item.key}
-            horizontal
-            pagingEnabled
-            onScroll={Animated.event(
-              [
-                {
-                  nativeEvent: { contentOffset: { x: scrollX } },
-                },
-              ],
-              {
-                useNativeDriver: true,
-              }
-            )}
-            bounces={false}
-            style={{ flexGrow: 0, zIndex: 9999 }}
-            contentContainerStyle={{
-              height: IMAGE_HEIGHT + SPACING * 2,
-              paddingHorizontal: SPACING * 4,
-            }}
-            showsHorizontalScrollIndicator={false}
-            renderItem={({ item, index }) => {
-              const inputRange = [
-                (index - 1) * width, // next slide
-                index * width, // current slide
-                (index + 1) * width, // previous slide
-              ];
-              const opacity = scrollX.interpolate({
-                inputRange,
-                outputRange: [0, 1, 0],
-              });
-              const translateY = scrollX.interpolate({
-                inputRange,
-                outputRange: [50, 0, 20], // create a wave
-              });
-              return (
-                <Animated.View
-                  style={{
-                    width,
-                    paddingVertical: SPACING,
-                    opacity,
-                    transform: [{ translateY }],
-                  }}
-                >
-                  <Image
-                    source={{ uri: item.image }}
-                    style={{
-                      width: IMAGE_WIDTH,
-                      height: IMAGE_HEIGHT,
-                      resizeMode: "cover",
-                    }}
-                  />
-                </Animated.View>
-              );
-            }}
+    <View style={styles.root}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.title}>Speech to Text. </Text>
+        <Text style={styles.title}>{message}</Text>
+      </View>
+      <View style={styles.settingsSection}>
+        <Mode
+          disabled={isTranscribing || isRecording}
+          possibleLanguages={supportedLanguages}
+          selectedLanguage={selectedLanguage}
+          onLanguageChange={setSelectedLanguage}
+          modelOptions={modelOptions}
+          selectedModel={selectedModel}
+          onModelChange={setSelectedModel}
+          transcribeTimeout={transcribeTimeout}
+          onTranscribeTiemoutChanged={handleTranscribeTimeoutChange}
+        />
+      </View>
+      <View style={styles.buttonsSection}>
+        {!isRecording && !isTranscribing && (
+          <Button onPress={startRecording} title="Start recording" />
+        )}
+        {(isRecording || isTranscribing) && (
+          <Button
+            onPress={stopRecording}
+            disabled={stopTranscriptionSessionRef.current}
+            title="stop recording"
           />
-          <Animated.View
-            style={{
-              width: IMAGE_WIDTH + SPACING * 4,
-              height: 450,
-              position: "absolute",
-              backgroundColor: "white",
-              backfaceVisibility: true,
-              zIndex: -1,
-              top: SPACING * 1,
-              left: SPACING * 1.7,
-              bottom: 0,
-              shadowColor: "#000",
-              shadowOpacity: 0.2,
-              shadowRadius: 24,
-              shadowOffset: {
-                width: 0,
-                height: 0,
-              },
-              transform: [
-                {
-                  perspective: IMAGE_WIDTH * 4,
-                },
-                {
-                  rotateY: progress.interpolate({
-                    inputRange: [0, 0.5, 1],
-                    outputRange: ["0deg", "90deg", "180deg"],
-                  }),
-                },
-              ],
-            }}
-          />
-        </View>
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            width: IMAGE_WIDTH + SPACING * 4,
-            paddingHorizontal: SPACING,
-            paddingVertical: SPACING,
-          }}
-        >
-          <TouchableOpacity onPress={() => {}}>
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <AntDesign name="swapleft" size={42} color="black" />
-              <Text style={{ fontSize: 12, fontWeight: "800" }}>PREV</Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => {}}>
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Text style={{ fontSize: 12, fontWeight: "800" }}>NEXT</Text>
-              <AntDesign name="swapright" size={42} color="black" />
-            </View>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+        )}
+        <Button title="Transcribe" onPress={() => transcribeRecording()} />
+        {getRecordingLines()}
+      </View>
+
+      {isLoading !== false ? (
+        <ActivityIndicator
+          size="large"
+          color="#00ff00"
+          hidesWhenStopped={true}
+          animating={true}
+        />
+      ) : (
+        <Text></Text>
+      )}
+
+      <View style={styles.transcription}>
+        <TranscribedOutput
+          transcribedText={transcribedData}
+          interimTranscribedText={interimTranscribedData}
+        />
+      </View>
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  root: {
+    display: "flex",
+    flex: 1,
+    alignItems: "center",
+    textAlign: "center",
+    flexDirection: "column",
+  },
+  title: {
+    marginTop: 40,
+    fontWeight: "400",
+    fontSize: 30,
+  },
+  settingsSection: {
+    flex: 1,
+  },
+  buttonsSection: {
+    flex: 1,
+    flexDirection: "row",
+  },
+  transcription: {
+    flex: 1,
+    flexDirection: "row",
+  },
+  recordIllustration: {
+    width: 100,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fill: {
+    flex: 1,
+    margin: 16,
+  },
+  button: {
+    margin: 16,
+  },
+});
